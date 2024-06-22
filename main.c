@@ -308,7 +308,7 @@ void render(struct player *p) {
       // if (i == 0 ){
       //   printf("wh: %d, ws: %d, we: %d\n", wallHeight, wallStart, wallEnd);
       // }
-      draw_line(i, wallStart, i, wallEnd, color);
+      draw_line(SCREEN_WIDTH - i, wallStart, SCREEN_WIDTH - i, wallEnd, color);
     }
   }
 }
@@ -351,10 +351,10 @@ int main() {
         p.pos.y -= sin(p.dir) * 5;
         break;
       case 97: // a
-        p.dir += 0.1;
+        p.dir -= 0.1;
         break;
       case 100: // d
-        p.dir -= 0.1;
+        p.dir += 0.1;
         break;
       case 109: // m
         showMap = !showMap;
