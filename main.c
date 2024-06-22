@@ -24,7 +24,7 @@
 #define eps 1e-6
 #define PI 3.14
 #define fov degToRad(90)
-#define number_rays 64
+#define number_rays SCREEN_WIDTH
 
 typedef unsigned char byte;
 
@@ -181,9 +181,9 @@ const int scene[100] = {
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, //
     1, 0, 0, 0, 0, 0, 0, 0, 0, 1, //
     1, 0, 0, 0, 0, 0, 0, 0, 0, 1, //
-    1, 0, 0, 0, 0, 0, 0, 0, 0, 1, //
-    1, 0, 0, 0, 0, 0, 0, 0, 0, 1, //
-    1, 0, 0, 0, 0, 0, 0, 0, 0, 1, //
+    1, 1, 1, 0, 0, 0, 0, 0, 0, 1, //
+    1, 0, 1, 0, 0, 0, 0, 0, 0, 1, //
+    1, 0, 1, 1, 0, 0, 0, 0, 0, 1, //
     1, 0, 0, 0, 0, 0, 0, 0, 0, 1, //
     1, 0, 0, 0, 0, 0, 0, 0, 0, 1, //
     1, 0, 0, 0, 0, 0, 0, 0, 0, 1, //
@@ -242,7 +242,6 @@ void render(struct player *p) {
   float angle, dx, dy, x, y;
   // draw_background();
   // draw_grid();
-
   _fmemcpy(backBuffer, bgBuffer, VGA_SIZE);
   draw_player(p);
 
@@ -275,8 +274,8 @@ int main() {
 
   byte *pal;
 
-  struct player p = {.pos = {.x = 2.5 * CELL_WIDTH, .y = 3.5 * CELL_HEIGHT},
-                     .dir = 1.20 * PI};
+  struct player p = {.pos = {.x = 6.0 * CELL_WIDTH, .y = 3.5 * CELL_HEIGHT},
+                     .dir = 1.0 * PI};
 
   backBuffer = (byte far *)_fmalloc(VGA_SIZE);
   bgBuffer = (byte far *)_fmalloc(VGA_SIZE);
