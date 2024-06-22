@@ -297,6 +297,12 @@ int main() {
         p.pos.x -= cos(p.dir) * 5;
         p.pos.y -= sin(p.dir) * 5;
         break;
+      case 97: // a
+        p.dir -= 0.1;
+        break;
+      case 100: // d
+        p.dir += 0.1;
+        break;
       }
       // printf("key: %d\n", kc);
     }
