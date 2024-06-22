@@ -235,32 +235,20 @@ void draw_player(struct player *p) {
   draw_line(x, y, x + dx * 10, y + dy * 10, RED);
 }
 
-int main() {
-  char kc = 0;
-  char s[255];
-
-  byte *pal;
-
-  struct player p = {.pos = {.x = 2.5 * CELL_WIDTH, .y = 3.5 * CELL_HEIGHT},
-                     .dir = 1.20 * PI};
-
-  set_mode(VGA_256_COLOR_MODE);
-
+void render(struct player *p) {
   draw_background();
-
   draw_grid();
-
-  draw_player(&p);
+  draw_player(p);
 
   // draw fov rays
   for (int i = 0; i < number_rays; i++) {
-    float angle = p.dir + (fov / 2) - (fov / (number_rays - 1)) * i;
+    float angle = p->dir + (fov / 2) - (fov / (number_rays - 1)) * i;
 
     float dx = cos(angle);
     float dy = sin(angle);
 
-    float x = p.pos.x;
-    float y = p.pos.y;
+    float x = p->pos.x;
+    float y = p->pos.y;
 
     // printf("dx: %f dy: %f\n", dx, dy);
     // printf("x: %f, y: %f\n", x, y);
@@ -279,14 +267,40 @@ int main() {
     //   col = LIGHT_BLUE;
     // }
 
-    draw_line(p.pos.x, p.pos.y, x, y, col);
+    draw_line(p->pos.x, p->pos.y, x, y, col);
   }
+}
+int main() {
+  char kc = 0;
+  char s[255];
+
+  byte *pal;
+
+  struct player p = {.pos = {.x = 2.5 * CELL_WIDTH, .y = 3.5 * CELL_HEIGHT},
+                     .dir = 1.20 * PI};
+
+  set_mode(VGA_256_COLOR_MODE);
+
+  // draw_background();
 
   /* loop until ESC pressed */
   while (kc != 0x1b) {
     if (kbhit()) {
       kc = getch();
+
+      switch (kc) {
+      case 119: // w
+        p.pos.x += cos(p.dir) * 5;
+        p.pos.y += sin(p.dir) * 5;
+        break;
+      case 115: // s
+        p.pos.x -= cos(p.dir) * 5;
+        p.pos.y -= sin(p.dir) * 5;
+        break;
+      }
+      // printf("key: %d\n", kc);
     }
+    render(&p);
   }
 
   set_mode(TEXT_MODE);
