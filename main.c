@@ -28,7 +28,10 @@
 
 typedef unsigned char byte;
 
+// typedef enum { true, false} bool;
+
 byte far *backBuffer = (byte far *)NULL;
+byte far *bgBuffer = (byte far *)NULL;
 byte far *frameBuffer = (byte far *)0xA0000000L;
 
 #define SETPIX(x, y, c) *(backBuffer + (x) + (y) * SCREEN_WIDTH) = c
@@ -73,7 +76,6 @@ void draw_background() {
 
   for (y = 0; y < SCREEN_HEIGHT; ++y) {
     for (x = 0; x < SCREEN_WIDTH; ++x) {
-      // SETPIX(x, y, y);
       SETPIX(x, y, GRAY);
     }
   }
@@ -238,8 +240,10 @@ void draw_player(struct player *p) {
 void render(struct player *p) {
   int i, distance;
   float angle, dx, dy, x, y;
-  draw_background();
-  draw_grid();
+  // draw_background();
+  // draw_grid();
+
+  _fmemcpy(backBuffer, bgBuffer, VGA_SIZE);
   draw_player(p);
 
   // draw fov rays
@@ -275,6 +279,11 @@ int main() {
                      .dir = 1.20 * PI};
 
   backBuffer = (byte far *)_fmalloc(VGA_SIZE);
+  bgBuffer = (byte far *)_fmalloc(VGA_SIZE);
+  draw_background();
+  draw_grid();
+
+  _fmemcpy(bgBuffer, backBuffer, VGA_SIZE);
 
   set_mode(VGA_256_COLOR_MODE);
 

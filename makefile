@@ -3,7 +3,7 @@ SOURCES=main.c
 
 
 $(TARGET): $(SOURCES) 
-	wcl -bt=dps -lr -d2 -za99 -fe=$@ $(SOURCES)
+	wcl -bt=dps -ml -d2 -za99 -fe=$@ $(SOURCES)
 
 all: $(TARGET)
 
