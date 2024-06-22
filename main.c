@@ -1,6 +1,8 @@
 #include <conio.h>
 #include <dos.h>
 #include <malloc.h>
+#include <math.h>
+#include <stdio.h>
 
 #define NUM_COLORS 256
 
@@ -15,17 +17,24 @@
 #define PALETTE_INDEX 0x3C8
 #define PALETTE_DATA 0x3C9
 
+#define PI 3.14
+
 typedef unsigned char byte;
 
 byte far *VGA = (byte far *)0xA0000000L;
 
 #define SETPIX(x, y, c) *(VGA + (x) + (y) * SCREEN_WIDTH) = c
 #define GETPIX(x, y) *(VGA + (x) + (y) * SCREEN_WIDTH)
+
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
+#define abs(x) ((x) < 0 ? -(x) : (x))
+#define round(x) ((x) >= 0 ? (int)((x) + 0.5) : (int)((x)-0.5))
 
 #define GRID_COLS 10
 #define GRID_ROWS 10
+#define CELL_WIDTH 32
+#define CELL_HEIGHT 20
 
 #define BLACK 0x00
 #define BLUE 0x01
@@ -84,11 +93,31 @@ void draw_triangle(int x1, int y1, int x2, int y2, int x3, int y3, byte color) {
   }
 }
 
+void draw_rectangle(int x1, int y1, int x2, int y2, byte color) {
+  int x, y;
+  for (y = y1; y <= y2; ++y) {
+    for (x = x1; x <= x2; ++x) {
+      SETPIX(x, y, color);
+    }
+  }
+}
+
 void draw_square(int x, int y, int size, byte color) {
   int i, j;
   for (i = x; i < x + size; i++) {
     for (j = y; j < y + size; j++) {
       SETPIX(i, j, color);
+    }
+  }
+}
+
+void draw_circle(int x, int y, int radius, byte color) {
+  int i, j;
+  for (i = x - radius; i < x + radius; i++) {
+    for (j = y - radius; j < y + radius; j++) {
+      if ((i - x) * (i - x) + (j - y) * (j - y) < radius * radius) {
+        SETPIX(i, j, color);
+      }
     }
   }
 }
@@ -137,29 +166,76 @@ void draw_line(int x1, int y1, int x2, int y2, byte color) {
   }
 }
 
+const int scene[100] = {
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, //
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 1, //
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 1, //
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 1, //
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 1, //
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 1, //
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 1, //
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 1, //
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 1, //
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, //
+};
+
+#define GET_SCENE(x, y) scene[(y) * 10 + (x)]
+
 void draw_grid() {
   int i, j;
-  int cell_width = SCREEN_WIDTH / GRID_COLS;
-  int cell_height = SCREEN_HEIGHT / GRID_ROWS;
 
   for (i = 0; i < GRID_COLS; i++) {
     for (j = 0; j < GRID_ROWS; j++) {
-      draw_line(i * cell_width, j * cell_height, (i + 1) * cell_width,
-                j * cell_height, WHITE);
 
-      draw_line(i * cell_width, j * cell_height, i * cell_width,
-                (j + 1) * cell_height, WHITE);
+      draw_line(i * CELL_WIDTH, j * CELL_HEIGHT, (i + 1) * CELL_WIDTH,
+                j * CELL_HEIGHT, WHITE);
 
+      draw_line(i * CELL_WIDTH, j * CELL_HEIGHT, i * CELL_WIDTH,
+                (j + 1) * CELL_HEIGHT, WHITE);
+
+      if (GET_SCENE(i, j) == 1) {
+        // draw_square(i * CELL_WIDTH + (1), j * CELL_HEIGHT + 1, CELL_WIDTH -
+        // 1, CYAN);
+        draw_rectangle(i * CELL_WIDTH + 1, j * CELL_HEIGHT + 1,
+                       (i + 1) * CELL_WIDTH - 1, (j + 1) * CELL_HEIGHT - 1,
+                       CYAN);
+      }
     }
   }
+
   draw_line(0, SCREEN_HEIGHT - 1, SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1, WHITE);
   draw_line(SCREEN_WIDTH - 1, 0, SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1, WHITE);
+}
+
+struct vector2 {
+  int x;
+  int y;
+};
+
+struct player {
+  struct vector2 pos;
+  float dir;
+};
+
+void draw_player(struct player *p) {
+  int x = p->pos.x;
+  int y = p->pos.y;
+
+  int dx = round(cos(p->dir));
+  int dy = round(sin(p->dir));
+
+  draw_circle(x, y, 5, RED);
+  draw_line(x, y, x + dx * 10, y + dy * 10, RED);
 }
 
 int main() {
   char kc = 0;
   char s[255];
+
   byte *pal;
+
+  struct player p = {.pos = {.x = 2.5 * CELL_WIDTH, .y = 3.5 * CELL_HEIGHT},
+                     .dir = PI};
 
   set_mode(VGA_256_COLOR_MODE);
 
@@ -167,9 +243,7 @@ int main() {
 
   draw_grid();
 
-  // draw_triangle(10, 190, 150, 10, 310, 190, 0x28);
-
-  // draw_square(10, 10, 100, 0x28);
+  draw_player(&p);
 
   /* loop until ESC pressed */
   while (kc != 0x1b) {
