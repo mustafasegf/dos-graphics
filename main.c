@@ -17,7 +17,14 @@
 #define PALETTE_INDEX 0x3C8
 #define PALETTE_DATA 0x3C9
 
+#define degToRad(x) ((x) * PI / 180.0)
+#define radToDeg(x) ((x) * 180.0 / PI)
+
+#define eps 1e-6
 #define PI 3.14
+#define fov degToRad(90)
+#define number_rays 7
+
 
 typedef unsigned char byte;
 
@@ -122,46 +129,47 @@ void draw_circle(int x, int y, int radius, byte color) {
   }
 }
 
+// bressenham's line drawing algorithm
 void draw_line(int x1, int y1, int x2, int y2, byte color) {
-  int x, y;
   int dx, dy;
-  int dx2, dy2;
-  int ix, iy;
-  int d;
+  int x, y;
+  int d, s1, s2, swap = 0, temp;
 
-  dx = x2 - x1;
-  dy = y2 - y1;
+  dx = abs(x2 - x1);
+  dy = abs(y2 - y1);
 
-  dx2 = dx * 2;
-  dy2 = dy * 2;
+  s1 = (x2 >= x1) ? 1 : -1;
+  s2 = (y2 >= y1) ? 1 : -1;
 
-  ix = (dx > 0) ? 1 : -1;
-  iy = (dy > 0) ? 1 : -1;
+  if (dy > dx) {
+    temp = dx;
+    dx = dy;
+    dy = temp;
+    swap = 1;
+  }
 
-  dx = abs(dx);
-  dy = abs(dy);
+  d = 2 * dy - dx;
 
-  if (dx >= dy) {
-    d = dy2 - dx;
-    while (x1 != x2) {
-      SETPIX(x1, y1, color);
-      if (d >= 0) {
-        y1 += iy;
-        d -= dx2;
+  x = x1;
+  y = y1;
+
+  for (int i = 1; i <= dx; i++) {
+    SETPIX(x, y, color);
+
+    while (d >= 0) {
+      d = d - 2 * dx;
+      if (swap) {
+        x = x + s1;
+      } else {
+        y = y + s2;
       }
-      d += dy2;
-      x1 += ix;
     }
-  } else {
-    d = dx2 - dy;
-    while (y1 != y2) {
-      SETPIX(x1, y1, color);
-      if (d >= 0) {
-        x1 += ix;
-        d -= dy2;
-      }
-      d += dx2;
-      y1 += iy;
+
+    d = d + 2 * dy;
+    if (swap) {
+      y = y + s2;
+    } else {
+      x = x + s1;
     }
   }
 }
@@ -244,6 +252,52 @@ int main() {
   draw_grid();
 
   draw_player(&p);
+
+  // draw fov rays
+  for (int i = 0; i < number_rays; i++) {
+    // float angle = p.dir - fov / 2.0 + fov * i / number_rays;
+    // float angle = p.dir + fov / 2 * (i - 1) / number_rays;
+
+    /*
+     * fov = 60 deg
+     * number_rays = 5
+     *
+     * p.dir - 30 deg
+     * p.dir - 15 deg
+     * p.dir + 0 deg
+     * p.dir + 15 deg
+     * p.dir + 30 deg
+     */
+
+    
+    // float angle = p.dir + (fov / 2) * (i - 1);
+    float angle = p.dir + (fov/2) - (fov/ ( number_rays - 1) )*i;
+
+    float dx = cos(angle);
+    float dy = sin(angle);
+
+    float x = p.pos.x + dx * 30.0;
+    float y = p.pos.y + dy * 30.0;
+
+    // printf("dx: %f dy: %f\n", dx, dy);
+    // printf("x: %f, y: %f\n", x, y);
+
+    // int distance = 0;
+    // while (GET_SCENE(x / CELL_WIDTH, y / CELL_HEIGHT) == 0) {
+    //   x += dx;
+    //   y += dy;
+    //   distance++;
+    // }
+
+    byte col = LIGHT_RED;
+    // if (i == 1) {
+    //   col = LIGHT_GREEN;
+    // } else if (i == 2) {
+    //   col = LIGHT_BLUE;
+    // }
+
+    draw_line(p.pos.x, p.pos.y, x, y , col);
+  }
 
   /* loop until ESC pressed */
   while (kc != 0x1b) {
