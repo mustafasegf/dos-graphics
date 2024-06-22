@@ -25,7 +25,6 @@
 #define fov degToRad(90)
 #define number_rays 7
 
-
 typedef unsigned char byte;
 
 byte far *VGA = (byte far *)0xA0000000L;
@@ -243,7 +242,7 @@ int main() {
   byte *pal;
 
   struct player p = {.pos = {.x = 2.5 * CELL_WIDTH, .y = 3.5 * CELL_HEIGHT},
-                     .dir = PI};
+                     .dir = 1.20 * PI};
 
   set_mode(VGA_256_COLOR_MODE);
 
@@ -255,39 +254,23 @@ int main() {
 
   // draw fov rays
   for (int i = 0; i < number_rays; i++) {
-    // float angle = p.dir - fov / 2.0 + fov * i / number_rays;
-    // float angle = p.dir + fov / 2 * (i - 1) / number_rays;
-
-    /*
-     * fov = 60 deg
-     * number_rays = 5
-     *
-     * p.dir - 30 deg
-     * p.dir - 15 deg
-     * p.dir + 0 deg
-     * p.dir + 15 deg
-     * p.dir + 30 deg
-     */
-
-    
-    // float angle = p.dir + (fov / 2) * (i - 1);
-    float angle = p.dir + (fov/2) - (fov/ ( number_rays - 1) )*i;
+    float angle = p.dir + (fov / 2) - (fov / (number_rays - 1)) * i;
 
     float dx = cos(angle);
     float dy = sin(angle);
 
-    float x = p.pos.x + dx * 30.0;
-    float y = p.pos.y + dy * 30.0;
+    float x = p.pos.x;
+    float y = p.pos.y;
 
     // printf("dx: %f dy: %f\n", dx, dy);
     // printf("x: %f, y: %f\n", x, y);
 
-    // int distance = 0;
-    // while (GET_SCENE(x / CELL_WIDTH, y / CELL_HEIGHT) == 0) {
-    //   x += dx;
-    //   y += dy;
-    //   distance++;
-    // }
+    int distance = 0;
+    while (GET_SCENE((int)x / CELL_WIDTH, (int)y / CELL_HEIGHT) == 0) {
+      x += dx;
+      y += dy;
+      distance++;
+    }
 
     byte col = LIGHT_RED;
     // if (i == 1) {
@@ -296,7 +279,7 @@ int main() {
     //   col = LIGHT_BLUE;
     // }
 
-    draw_line(p.pos.x, p.pos.y, x, y , col);
+    draw_line(p.pos.x, p.pos.y, x, y, col);
   }
 
   /* loop until ESC pressed */
