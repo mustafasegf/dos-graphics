@@ -10,6 +10,7 @@
 #define VIDEO_INT 0x10
 #define VGA_256_COLOR_MODE 0x13
 #define TEXT_MODE 0x03
+#define VGA_SIZE ((unsigned int)64000)
 
 #define SCREEN_HEIGHT 200
 #define SCREEN_WIDTH 320
@@ -23,14 +24,15 @@
 #define eps 1e-6
 #define PI 3.14
 #define fov degToRad(90)
-#define number_rays 7
+#define number_rays 64
 
 typedef unsigned char byte;
 
-byte far *VGA = (byte far *)0xA0000000L;
+byte far *backBuffer = (byte far *)NULL;
+byte far *frameBuffer = (byte far *)0xA0000000L;
 
-#define SETPIX(x, y, c) *(VGA + (x) + (y) * SCREEN_WIDTH) = c
-#define GETPIX(x, y) *(VGA + (x) + (y) * SCREEN_WIDTH)
+#define SETPIX(x, y, c) *(backBuffer + (x) + (y) * SCREEN_WIDTH) = c
+#define GETPIX(x, y) *(backBuffer + (x) + (y) * SCREEN_WIDTH)
 
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
@@ -201,8 +203,6 @@ void draw_grid() {
                 (j + 1) * CELL_HEIGHT, WHITE);
 
       if (GET_SCENE(i, j) == 1) {
-        // draw_square(i * CELL_WIDTH + (1), j * CELL_HEIGHT + 1, CELL_WIDTH -
-        // 1, CYAN);
         draw_rectangle(i * CELL_WIDTH + 1, j * CELL_HEIGHT + 1,
                        (i + 1) * CELL_WIDTH - 1, (j + 1) * CELL_HEIGHT - 1,
                        CYAN);
@@ -236,38 +236,33 @@ void draw_player(struct player *p) {
 }
 
 void render(struct player *p) {
+  int i, distance;
+  float angle, dx, dy, x, y;
   draw_background();
   draw_grid();
   draw_player(p);
 
   // draw fov rays
-  for (int i = 0; i < number_rays; i++) {
-    float angle = p->dir + (fov / 2) - (fov / (number_rays - 1)) * i;
+  for (i = 0; i < number_rays; i++) {
+    angle = p->dir + (fov / 2) - (fov / (number_rays - 1)) * i;
 
-    float dx = cos(angle);
-    float dy = sin(angle);
+    dx = cos(angle);
+    dy = sin(angle);
 
-    float x = p->pos.x;
-    float y = p->pos.y;
+    x = p->pos.x;
+    y = p->pos.y;
 
     // printf("dx: %f dy: %f\n", dx, dy);
     // printf("x: %f, y: %f\n", x, y);
 
-    int distance = 0;
+    distance = 0;
     while (GET_SCENE((int)x / CELL_WIDTH, (int)y / CELL_HEIGHT) == 0) {
       x += dx;
       y += dy;
       distance++;
     }
 
-    byte col = LIGHT_RED;
-    // if (i == 1) {
-    //   col = LIGHT_GREEN;
-    // } else if (i == 2) {
-    //   col = LIGHT_BLUE;
-    // }
-
-    draw_line(p->pos.x, p->pos.y, x, y, col);
+    draw_line(p->pos.x, p->pos.y, (int)x, (int)y, LIGHT_RED);
   }
 }
 int main() {
@@ -279,9 +274,9 @@ int main() {
   struct player p = {.pos = {.x = 2.5 * CELL_WIDTH, .y = 3.5 * CELL_HEIGHT},
                      .dir = 1.20 * PI};
 
-  set_mode(VGA_256_COLOR_MODE);
+  backBuffer = (byte far *)_fmalloc(VGA_SIZE);
 
-  // draw_background();
+  set_mode(VGA_256_COLOR_MODE);
 
   /* loop until ESC pressed */
   while (kc != 0x1b) {
@@ -307,9 +302,11 @@ int main() {
       // printf("key: %d\n", kc);
     }
     render(&p);
+    _fmemcpy(frameBuffer, backBuffer, VGA_SIZE);
   }
 
   set_mode(TEXT_MODE);
 
+  _ffree(backBuffer);
   return 0;
 }
