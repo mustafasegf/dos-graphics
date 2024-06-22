@@ -2,6 +2,7 @@
 #include <dos.h>
 #include <malloc.h>
 #include <math.h>
+#include <stdbool.h>
 #include <stdio.h>
 
 #define NUM_COLORS 256
@@ -24,15 +25,15 @@
 #define eps 1e-6
 #define PI 3.14
 #define fov degToRad(90)
-#define number_rays SCREEN_WIDTH
+#define NUMBER_RAYS SCREEN_WIDTH
+#define WALL_HEIGHT 100
 
 typedef unsigned char byte;
-
-// typedef enum { true, false} bool;
 
 byte far *backBuffer = (byte far *)NULL;
 byte far *bgBuffer = (byte far *)NULL;
 byte far *frameBuffer = (byte far *)0xA0000000L;
+bool showMap = true;
 
 #define SETPIX(x, y, c) *(backBuffer + (x) + (y) * SCREEN_WIDTH) = c
 #define GETPIX(x, y) *(backBuffer + (x) + (y) * SCREEN_WIDTH)
@@ -237,17 +238,37 @@ void draw_player(struct player *p) {
   draw_line(x, y, x + dx * 10, y + dy * 10, RED);
 }
 
+float Q_rsqrt(float number)
+{
+  long i;
+  float x2, y;
+  const float threehalfs = 1.5F;
+
+  x2 = number * 0.5F;
+  y  = number;
+  i  = * ( long * ) &y;                       // evil floating point bit level hacking
+  i  = 0x5f3759df - ( i >> 1 );               // what the fuck?
+  y  = * ( float * ) &i;
+  y  = y * ( threehalfs - ( x2 * y * y ) );   // 1st iteration
+  // y  = y * ( threehalfs - ( x2 * y * y ) );   // 2nd iteration, this can be removed
+
+  return y;
+}
+
 void render(struct player *p) {
   int i, distance;
   float angle, dx, dy, x, y;
   // draw_background();
   // draw_grid();
+
   _fmemcpy(backBuffer, bgBuffer, VGA_SIZE);
-  draw_player(p);
+  if (showMap) {
+    draw_player(p);
+  }
 
   // draw fov rays
-  for (i = 0; i < number_rays; i++) {
-    angle = p->dir + (fov / 2) - (fov / (number_rays - 1)) * i;
+  for (i = 0; i < NUMBER_RAYS; i++) {
+    angle = p->dir + (fov / 2) - (fov / (NUMBER_RAYS - 1)) * i;
 
     dx = cos(angle);
     dy = sin(angle);
@@ -255,17 +276,40 @@ void render(struct player *p) {
     x = p->pos.x;
     y = p->pos.y;
 
-    // printf("dx: %f dy: %f\n", dx, dy);
-    // printf("x: %f, y: %f\n", x, y);
+    // check left side first then right side. keep track of which side is
+    bool isLeft = false;
 
-    distance = 0;
     while (GET_SCENE((int)x / CELL_WIDTH, (int)y / CELL_HEIGHT) == 0) {
-      x += dx;
-      y += dy;
-      distance++;
+      if (isLeft) {
+        x += dx;
+      } else {
+        y += dy;
+      }
+      isLeft = !isLeft;
     }
 
-    draw_line(p->pos.x, p->pos.y, (int)x, (int)y, LIGHT_RED);
+    // double dist = sqrt((x - p->pos.x) * (x - p->pos.x) +
+    //                    (y - p->pos.y) * (y - p->pos.y));
+    double dist = Q_rsqrt((x - p->pos.x) * (x - p->pos.x) +
+                          (y - p->pos.y) * (y - p->pos.y));
+    
+    double perp = dist * cos(angle - p->dir);
+
+    byte color = (isLeft) ? LIGHT_RED : RED;
+
+    if (showMap) {
+      draw_line(p->pos.x, p->pos.y, (int)x, (int)y, color);
+    } else {
+      // draw wall
+      int wallHeight = 20 * WALL_HEIGHT * perp;
+      int wallStart = SCREEN_HEIGHT / 2 - wallHeight / 2;
+      int wallEnd = SCREEN_HEIGHT / 2 + wallHeight / 2;
+
+      // if (i == 0 ){
+      //   printf("wh: %d, ws: %d, we: %d\n", wallHeight, wallStart, wallEnd);
+      // }
+      draw_line(i, wallStart, i, wallEnd, color);
+    }
   }
 }
 int main() {
@@ -279,8 +323,14 @@ int main() {
 
   backBuffer = (byte far *)_fmalloc(VGA_SIZE);
   bgBuffer = (byte far *)_fmalloc(VGA_SIZE);
-  draw_background();
-  draw_grid();
+
+  if (showMap) {
+    draw_background();
+    draw_grid();
+  } else {
+    draw_rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT / 2, BLACK);
+    draw_rectangle(0, SCREEN_HEIGHT / 2, SCREEN_WIDTH, SCREEN_HEIGHT, GRAY);
+  }
 
   _fmemcpy(bgBuffer, backBuffer, VGA_SIZE);
 
@@ -301,10 +351,24 @@ int main() {
         p.pos.y -= sin(p.dir) * 5;
         break;
       case 97: // a
-        p.dir -= 0.1;
+        p.dir += 0.1;
         break;
       case 100: // d
-        p.dir += 0.1;
+        p.dir -= 0.1;
+        break;
+      case 109: // m
+        showMap = !showMap;
+        if (showMap) {
+          draw_background();
+          draw_grid();
+
+          _fmemcpy(bgBuffer, backBuffer, VGA_SIZE);
+        } else {
+          draw_rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT / 2, BLACK);
+          draw_rectangle(0, SCREEN_HEIGHT / 2, SCREEN_WIDTH, SCREEN_HEIGHT,
+                         GRAY);
+          _fmemcpy(bgBuffer, backBuffer, VGA_SIZE);
+        }
         break;
       }
       // printf("key: %d\n", kc);
